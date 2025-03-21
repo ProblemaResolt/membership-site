@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 interface ChatMessage {
   id: string;
   content: string;
-  userId: string;
+  userId: number;  // stringからnumberに変更
   userName: string;
   timestamp: number;
 }
@@ -32,12 +32,12 @@ export const WebSocketChat = ({ teamId }: { teamId?: number }) => {
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !wsRef.current) return;
+    if (!message.trim() || !wsRef.current || !teamId) return;
 
     wsRef.current.send(JSON.stringify({
       type: 'chat',
       content: message,
-      teamId
+      teamId: teamId.toString() // 数値を文字列に変換
     }));
     setMessage('');
   };
@@ -46,7 +46,7 @@ export const WebSocketChat = ({ teamId }: { teamId?: number }) => {
     <div className="websocket-chat">
       <div className="messages">
         {messages.map(msg => (
-          <div key={msg.id} className={`message ${msg.userId === user?.id ? 'own' : ''}`}>
+          <div key={msg.id} className={`message ${msg.userId === Number(user?.id) ? 'own' : ''}`}>
             <div className="message-header">
               <span className="user-name">{msg.userName}</span>
               <span className="timestamp">

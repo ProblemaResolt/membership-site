@@ -1,79 +1,102 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: any;
-  login: (token: string) => void;
-  logout: () => void;
+export interface User {
+  id: number;
+  userId: string;
+  email: string;  // これを追加
+  firstName: string;
+  lastName: string;
+  role: string;
 }
 
-export const AuthContext = createContext<AuthContextType | null>(null);
+interface AuthContextType {
+  isAuthenticated: boolean;
+  token: string | null;
+  user: User | null;
+  login: (userId: string, password: string) => Promise<void>;
+  logout: () => void;
+  checkAuthStatus: () => Promise<void>;
+}
 
-const createAuthenticatedRequest = (token: string) => {
-  return {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    credentials: 'include' as RequestCredentials
-  };
-};
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
+  const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+  const [user, setUser] = useState<User | null>(null);
+
+  const checkAuthStatus = async () => {
+    const storedToken = localStorage.getItem('authToken');
+    if (!storedToken) {
+      setIsAuthenticated(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/check-session', {
+        headers: {
+          'Authorization': `Bearer ${storedToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('セッションが無効です');
+      }
+
+      setIsAuthenticated(true);
+    } catch (error) {
+      setIsAuthenticated(false);
+      localStorage.removeItem('authToken');
+      setUser(null);
+    }
+  };
+
+  const login = async (userId: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId, password })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || '認証に失敗しました');
+      }
+
+      const data = await response.json();
+      if (data.token && data.user) {
+        localStorage.setItem('authToken', data.token);
+        setToken(data.token);
+        setIsAuthenticated(true);
+        setUser(data.user);
+      } else {
+        throw new Error('不正なレスポンス形式です');
+      }
+    } catch (error) {
+      localStorage.removeItem('authToken');
+      setToken(null);
+      setIsAuthenticated(false);
+      setUser(null);
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    setToken(null);
+    setIsAuthenticated(false);
+    setUser(null);
+  };
 
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      const response = await fetch('/api/auth/check-session', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setIsAuthenticated(true);
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error('Auth status check failed:', error);
-    }
-  };
-
-  const login = async (token: string) => {
-    localStorage.setItem('token', token);
-    setIsAuthenticated(true);
-    
-    try {
-      const response = await fetch('/api/auth/me', {
-        ...createAuthenticatedRequest(token)
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      setIsAuthenticated(false);
-      setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, token, user, login, logout, checkAuthStatus }}>
       {children}
     </AuthContext.Provider>
   );

@@ -18,8 +18,15 @@ services:
       - NODE_ENV=development
       - DB_HOST=postgres
       - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=password
+      - DB_NAME=membership
       - REDIS_HOST=redis
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-} # OpenAI APIキーを追加
+      - REDIS_PORT=6379
+      - JWT_SECRET=your_jwt_secret_key
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:80
+      # OpenAI APIキー
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     command: ["npm", "start"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
@@ -29,10 +36,9 @@ services:
       start_period: 60s
 
   frontend:
-    build:
+    build: 
       context: ./frontend
       dockerfile: Dockerfile
-    working_dir: /app
     ports:
       - "3000:3000"
     volumes:
@@ -40,9 +46,15 @@ services:
       - /app/node_modules
     depends_on:
       - backend
-    command: ["npm", "start"]
+    environment:
+      - NODE_ENV=development
+      - VITE_ENV=development
+      - VITE_HOST=0.0.0.0
+      - VITE_API_URL=http://localhost:3001
+      - VITE_WS_URL=ws://localhost:3001
+    command: npm run dev
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "--spider", "--no-check-certificate", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 3

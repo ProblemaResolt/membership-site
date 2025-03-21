@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
-export const Layout = () => {
+export const Layout: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
 
   return (

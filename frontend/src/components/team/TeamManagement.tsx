@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import type { User } from '../../contexts/AuthContext';
 
-interface AuthUser {
-  id: number;
-  userId: string;
-  role: string;
+interface TeamContextType {
+  user: User;
 }
+
+const TeamContext = createContext<TeamContextType | null>(null);
 
 interface TeamMember {
   id: number;
@@ -24,7 +25,7 @@ interface Team {
 }
 
 export const TeamManagement: React.FC = () => {
-  const { user } = useAuth() as { user: AuthUser };
+  const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   
@@ -66,36 +67,38 @@ export const TeamManagement: React.FC = () => {
   };
 
   return (
-    <div className="team-management">
-      <h2>チーム管理</h2>
-      {/* チーム一覧 */}
-      <div className="teams-list">
-        {teams.map(team => (
-          <div key={team.id} className="team-item">
-            <h3>{team.name}</h3>
-            <p>{team.description}</p>
-            <button onClick={() => setSelectedTeam(team)}>
-              管理
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* チーム詳細と管理 */}
-      {selectedTeam && (
-        <div className="team-details">
-          <h3>{selectedTeam.name}の管理</h3>
-          <div className="members-list">
-            <h4>メンバー一覧</h4>
-            {selectedTeam.members.map(member => (
-              <div key={member.id} className="member-item">
-                <span>{member.firstName} {member.lastName}</span>
-                <span>役割: {member.role}</span>
-              </div>
-            ))}
-          </div>
+    <TeamContext.Provider value={{ user: user as User }}>
+      <div className="team-management">
+        <h2>チーム管理</h2>
+        {/* チーム一覧 */}
+        <div className="teams-list">
+          {teams.map(team => (
+            <div key={team.id} className="team-item">
+              <h3>{team.name}</h3>
+              <p>{team.description}</p>
+              <button onClick={() => setSelectedTeam(team)}>
+                管理
+              </button>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+
+        {/* チーム詳細と管理 */}
+        {selectedTeam && (
+          <div className="team-details">
+            <h3>{selectedTeam.name}の管理</h3>
+            <div className="members-list">
+              <h4>メンバー一覧</h4>
+              {selectedTeam.members.map(member => (
+                <div key={member.id} className="member-item">
+                  <span>{member.firstName} {member.lastName}</span>
+                  <span>役割: {member.role}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </TeamContext.Provider>
   );
 };

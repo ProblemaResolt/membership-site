@@ -20,17 +20,16 @@ export const Login = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ userId, password })
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) throw new Error(data.message || 'ログインに失敗しました');
 
-      await login(data.token);  // awaitを追加
-      navigate('/dashboard');  // /profileから/dashboardに変更
-    } catch (err: any) {
-      setError(err.message || 'ログインに失敗しました');
+      await login(userId, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ログインに失敗しました');
     } finally {
       setLoading(false);
     }

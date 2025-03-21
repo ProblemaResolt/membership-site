@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+enum PostVisibility {
+  PUBLIC
+  PRIVATE
+  TEAM
+}
+
+enum NotificationType {
+  SYSTEM
+  TEAM
+  CHAT
+}
+
+enum TeamMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  userId         String         @unique
+  name           String?
+  password       String
+  role           UserRole       @default(USER)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  subscriptions  Subscription[]
+  posts          Posts[]
+  teams          TeamMembers[]
+  files          Files[]
+  chats          Chats[]
+  notifications  Notifications[]
+  sessions       Sessions[]
+  oauthProfiles  OAuthProfiles[]
+  ownedTeams     Teams[]        @relation("TeamCreator")
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   String
+  creator     User         @relation("TeamCreator", fields: [createdBy], references: [id])
+  members     TeamMembers[]
+  posts       Posts[]
+  chats       Chats[]
+
+  @@index([createdBy])
+}
+
+model TeamMembers {
+  id        String         @id @default(uuid())
+  TeamId    String
+  UserId    String
+  role      TeamMemberRole @default(MEMBER)
+  team      Team          @relation(fields: [TeamId], references: [id])
+  user      User          @relation(fields: [UserId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([TeamId, UserId])
+}
+
+model Posts {
+  id          String         @id @default(uuid())
+  title       String
+  content     String
+  visibility  PostVisibility @default(PRIVATE)
+  userId      String
+  teamId      String?
+  user        User          @relation(fields: [userId], references: [id])
+  team        Team?         @relation(fields: [teamId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([teamId])
+}
+
+model Files {
+  id        String   @id @default(uuid())
+  name      String
+  path      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Chats {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  teamId    String?
+  parentId  String?
+  user      User     @relation(fields: [userId], references: [id])
+  team      Team?    @relation(fields: [teamId], references: [id])
+  parent    Chats?   @relation("ChatReplies", fields: [parentId], references: [id])
+  replies   Chats[]  @relation("ChatReplies")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([teamId])
+  @@index([parentId])
+}
+
+model Notifications {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  message   String
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  read      Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @default(now())
+
+  @@index([userId])
+}
+
+model Sessions {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OAuthProfiles {
+  id          String       @id @default(uuid())
+  provider    OAuthProvider
+  providerId  String
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now())
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+model Subscription {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  plan      String
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  status    String    @default("active")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+
+  @@index([userId])
+}
